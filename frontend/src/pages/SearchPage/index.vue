@@ -84,7 +84,7 @@ export default {
         findAllMatches: true,
         maxPatternLength: 32,
         minMatchCharLength: 2,
-        keys: ["name", "description"],
+        keys: ["name", "description", "recipeCategory", "tags", "recipeIngredient.title", "recipeIngredient.note", "recipeIngredient.food"],
       },
     };
   },

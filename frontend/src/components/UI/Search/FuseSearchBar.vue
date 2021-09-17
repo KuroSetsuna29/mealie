@@ -22,7 +22,7 @@ export default {
     },
     keys: {
       type: Array,
-      default: () => ["name"],
+      default: () => ["name", "description", "recipeCategory", "tags", "recipeIngredient.title", "recipeIngredient.note", "recipeIngredient.food"],
     },
     defaultOptions: {
       default: () => ({
