@@ -11,7 +11,7 @@ RUN npm run build
 ###############################################
 # Base Image
 ###############################################
-FROM python:3.9-slim as python-base
+FROM python:3.9.6-slim as python-base
 
 ENV MEALIE_HOME="/app"
 
@@ -61,7 +61,7 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/inst
 
 # copy project requirement files here to ensure they will be cached.
 WORKDIR $PYSETUP_PATH
-COPY ./poetry.lock ./pyproject.toml ./
+COPY ./pyproject.toml ./
 
 # install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
 RUN poetry install -E pgsql --no-dev
@@ -78,7 +78,7 @@ COPY --from=builder-base $PYSETUP_PATH $PYSETUP_PATH
 
 # copy backend
 COPY ./mealie $MEALIE_HOME/mealie
-COPY ./poetry.lock ./pyproject.toml $MEALIE_HOME/
+COPY ./pyproject.toml $MEALIE_HOME/
 
 #! Future
 # COPY ./alembic ./alembic.ini $MEALIE_HOME/
@@ -113,7 +113,7 @@ COPY --from=builder-base /usr/bin/caddy /usr/bin/caddy
 
 # copy backend
 COPY ./mealie $MEALIE_HOME/mealie
-COPY ./poetry.lock ./pyproject.toml $MEALIE_HOME/
+COPY ./pyproject.toml $MEALIE_HOME/
 COPY ./gunicorn_conf.py $MEALIE_HOME
 
 #! Future
