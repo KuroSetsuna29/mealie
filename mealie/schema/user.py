@@ -6,7 +6,7 @@ from mealie.db.models.group import Group
 from mealie.db.models.users import User
 from mealie.schema.category import CategoryBase
 from mealie.schema.meal import MealPlanOut
-from mealie.schema.recipe import RecipeSummary
+from mealie.schema.recipe import Recipe
 from mealie.schema.shopping_list import ShoppingListOut
 from pydantic.types import constr
 from pydantic.utils import GetterDict
@@ -93,7 +93,7 @@ class UserOut(UserBase):
 
 
 class UserFavorites(UserBase):
-    favorite_recipes: list[RecipeSummary] = []
+    favorite_recipes: list[Recipe] = []
 
     class Config:
         orm_mode = True
