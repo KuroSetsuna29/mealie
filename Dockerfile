@@ -11,7 +11,7 @@ RUN npm run build
 ###############################################
 # Base Image
 ###############################################
-FROM python:3.9.6-slim as python-base
+FROM python:3.9-slim as python-base
 
 ENV MEALIE_HOME="/app"
 
@@ -44,6 +44,8 @@ RUN apt-get update \
     build-essential \
     libpq-dev \
     libwebp-dev \
+    # LDAP Dependencies
+    libsasl2-dev libldap2-dev libssl-dev \ 
     gnupg gnupg2 gnupg1 \
     debian-keyring \
     debian-archive-keyring \

@@ -5,26 +5,26 @@ services:
       context: ./
       target: production
       dockerfile: Dockerfile
-    container_name: mealie
+    container_name: mealie-test
     restart: always
-    depends_on:
-      - "postgres"
     ports:
-      - 9090:80
+      - 9926:80
     environment:
-      DB_ENGINE: postgres # Optional: 'sqlite', 'postgres'
-      POSTGRES_USER: mealie
-      POSTGRES_PASSWORD: mealie
-      POSTGRES_SERVER: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: mealie
+      DEFAULT_PASSWORD: pass4mealie
+      DB_ENGINE: sqlite # Optional: 'sqlite', 'postgres'
+      # POSTGRES_USER: mealie
+      # POSTGRES_PASSWORD: pass4mealie
+      # POSTGRES_SERVER: 192.168.29.23
+      # POSTGRES_PORT: 5432
+      # POSTGRES_DB: mealie
       # WORKERS_PER_CORE: 0.5
       # MAX_WORKERS: 8
-      WEB_CONCURRENCY: 2
-  postgres:
-    container_name: postgres
-    image: postgres
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: mealie
-      POSTGRES_USER: mealie
+      MAX_WORKERS: 4
+      # WEB_CONCURRENCY: 2
+  # postgres:
+  #   container_name: postgres
+  #   image: postgres
+  #   restart: always
+  #   environment:
+  #     POSTGRES_PASSWORD: mealie
+  #     POSTGRES_USER: mealie

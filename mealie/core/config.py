@@ -6,7 +6,7 @@ from typing import Any, Optional, Union
 import dotenv
 from pydantic import BaseSettings, Field, PostgresDsn, validator
 
-APP_VERSION = "v0.5.2"
+APP_VERSION = "v0.5.4"
 DB_VERSION = "v0.5.0"
 
 CWD = Path(__file__).parent
@@ -151,6 +151,11 @@ class AppSettings(BaseSettings):
     DEFAULT_EMAIL: str = "changeme@email.com"
     DEFAULT_PASSWORD: str = "MyPassword"
 
+    LDAP_AUTH_ENABLED: bool = False
+    LDAP_SERVER_URL: str = None
+    LDAP_BIND_TEMPLATE: str = None
+    LDAP_ADMIN_FILTER: str = None
+
     SCHEDULER_DATABASE = f"sqlite:///{app_dirs.DATA_DIR.joinpath('scheduler.db')}"
 
     TOKEN_TIME: int = 2  # Time in Hours
@@ -166,6 +171,8 @@ class AppSettings(BaseSettings):
     RECIPE_LANDSCAPE_VIEW: bool = True
     RECIPE_DISABLE_COMMENTS: bool = False
     RECIPE_DISABLE_AMOUNT: bool = False
+
+    AUTO_BACKUP_ENABLED: bool = False
 
     class Config:
         env_file = BASE_DIR.joinpath(".env")
