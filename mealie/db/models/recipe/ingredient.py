@@ -1,91 +1,72 @@
-from mealie.db.models.model_base import BaseMixins, SqlAlchemyBase
-from requests import Session
-from sqlalchemy import Column, ForeignKey, Integer, String, Table, orm
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, orm
 
-ingredients_to_units = Table(
-    "ingredients_to_units",
-    SqlAlchemyBase.metadata,
-    Column("ingredient_units.id", Integer, ForeignKey("ingredient_units.id")),
-    Column("recipes_ingredients_id", Integer, ForeignKey("recipes_ingredients.id")),
-)
+from mealie.db.models._model_base import BaseMixins, SqlAlchemyBase
+from mealie.db.models.labels import MultiPurposeLabel
 
-ingredients_to_foods = Table(
-    "ingredients_to_foods",
-    SqlAlchemyBase.metadata,
-    Column("ingredient_foods.id", Integer, ForeignKey("ingredient_foods.id")),
-    Column("recipes_ingredients_id", Integer, ForeignKey("recipes_ingredients.id")),
-)
+from .._model_utils import auto_init
+from .._model_utils.guid import GUID
 
 
-class IngredientUnit(SqlAlchemyBase, BaseMixins):
+class IngredientUnitModel(SqlAlchemyBase, BaseMixins):
     __tablename__ = "ingredient_units"
-    id = Column(Integer, primary_key=True)
+    id = Column(GUID, primary_key=True, default=GUID.generate)
+
+    # ID Relationships
+    group_id = Column(GUID, ForeignKey("groups.id"), nullable=False)
+    group = orm.relationship("Group", back_populates="ingredient_units", foreign_keys=[group_id])
+
     name = Column(String)
     description = Column(String)
-    ingredients = orm.relationship("RecipeIngredient", secondary=ingredients_to_units, back_populates="unit")
+    abbreviation = Column(String)
+    fraction = Column(Boolean)
+    ingredients = orm.relationship("RecipeIngredient", back_populates="unit")
 
-    def __init__(self, name: str, description: str = None) -> None:
-        self.name = name
-        self.description = description
-
-    @classmethod
-    def get_ref_or_create(cls, session: Session, obj: dict):
-        # sourcery skip: flip-comparison
-        if obj is None:
-            return None
-
-        name = obj.get("name")
-
-        unit = session.query(cls).filter("name" == name).one_or_none()
-
-        if not unit:
-            return cls(**obj)
+    @auto_init()
+    def __init__(self, **_) -> None:
+        pass
 
 
-class IngredientFood(SqlAlchemyBase, BaseMixins):
+class IngredientFoodModel(SqlAlchemyBase, BaseMixins):
     __tablename__ = "ingredient_foods"
-    id = Column(Integer, primary_key=True)
+    id = Column(GUID, primary_key=True, default=GUID.generate)
+
+    # ID Relationships
+    group_id = Column(GUID, ForeignKey("groups.id"), nullable=False)
+    group = orm.relationship("Group", back_populates="ingredient_foods", foreign_keys=[group_id])
+
     name = Column(String)
     description = Column(String)
-    ingredients = orm.relationship("RecipeIngredient", secondary=ingredients_to_foods, back_populates="food")
+    ingredients = orm.relationship("RecipeIngredient", back_populates="food")
 
-    def __init__(self, name: str, description: str = None) -> None:
-        self.name = name
-        self.description = description
+    label_id = Column(GUID, ForeignKey("multi_purpose_labels.id"))
+    label = orm.relationship(MultiPurposeLabel, uselist=False, back_populates="foods")
 
-    @classmethod
-    def get_ref_or_create(cls, session: Session, obj: dict):
-        # sourcery skip: flip-comparison
-        if obj is None:
-            return None
-
-        name = obj.get("name")
-
-        unit = session.query(cls).filter("name" == name).one_or_none()
-
-        if not unit:
-            return cls(**obj)
+    @auto_init()
+    def __init__(self, **_) -> None:
+        pass
 
 
-class RecipeIngredient(SqlAlchemyBase):
+class RecipeIngredient(SqlAlchemyBase, BaseMixins):
     __tablename__ = "recipes_ingredients"
     id = Column(Integer, primary_key=True)
     position = Column(Integer)
-    parent_id = Column(Integer, ForeignKey("recipes.id"))
+    recipe_id = Column(GUID, ForeignKey("recipes.id"))
 
     title = Column(String)  # Section Header - Shows if Present
     note = Column(String)  # Force Show Text - Overrides Concat
 
     # Scaling Items
-    unit = orm.relationship(IngredientUnit, secondary=ingredients_to_units, uselist=False)
-    food = orm.relationship(IngredientFood, secondary=ingredients_to_foods, uselist=False)
-    quantity = Column(Integer)
+    unit_id = Column(GUID, ForeignKey("ingredient_units.id"))
+    unit = orm.relationship(IngredientUnitModel, uselist=False)
 
-    # Extras
+    food_id = Column(GUID, ForeignKey("ingredient_foods.id"))
+    food = orm.relationship(IngredientFoodModel, uselist=False)
+    quantity = Column(Float)
 
-    def __init__(self, title: str, note: str, unit: dict, food: dict, quantity: int, session: Session, **_) -> None:
-        self.title = title
-        self.note = note
-        self.unit = IngredientUnit.get_ref_or_create(session, unit)
-        self.food = IngredientFood.get_ref_or_create(session, food)
-        self.quantity = quantity
+    original_text = Column(String)
+
+    reference_id = Column(GUID)  # Reference Links
+
+    @auto_init()
+    def __init__(self, **_) -> None:
+        pass

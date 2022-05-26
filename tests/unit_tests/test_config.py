@@ -1,47 +1,23 @@
 import re
-from pathlib import Path
+from dataclasses import dataclass
 
-from mealie.core.config import CWD, DATA_DIR, AppDirectories, AppSettings, determine_data_dir, determine_secrets
+import pytest
 
-
-def test_default_settings(monkeypatch):
-    monkeypatch.delenv("DEFAULT_GROUP", raising=False)
-    monkeypatch.delenv("DEFAULT_PASSWORD", raising=False)
-    monkeypatch.delenv("POSTGRES_USER", raising=False)
-    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
-    monkeypatch.delenv("DEFAULT_PASSWORD", raising=False)
-    monkeypatch.delenv("API_PORT", raising=False)
-    monkeypatch.delenv("API_DOCS", raising=False)
-    monkeypatch.delenv("IS_DEMO", raising=False)
-
-    app_settings = AppSettings()
-
-    assert app_settings.DEFAULT_GROUP == "Home"
-    assert app_settings.DEFAULT_PASSWORD == "MyPassword"
-    assert app_settings.POSTGRES_USER == "mealie"
-    assert app_settings.POSTGRES_PASSWORD == "mealie"
-    assert app_settings.API_PORT == 9000
-    assert app_settings.API_DOCS is True
-    assert app_settings.IS_DEMO is False
-
-    assert app_settings.REDOC_URL == "/redoc"
-    assert app_settings.DOCS_URL == "/docs"
+from mealie.core.config import get_app_settings
+from mealie.core.settings.settings import AppSettings
 
 
 def test_non_default_settings(monkeypatch):
     monkeypatch.setenv("DEFAULT_GROUP", "Test Group")
     monkeypatch.setenv("DEFAULT_PASSWORD", "Test Password")
-    monkeypatch.setenv("POSTGRES_USER", "mealie-test")
-    monkeypatch.setenv("POSTGRES_PASSWORD", "mealie-test")
     monkeypatch.setenv("API_PORT", "8000")
     monkeypatch.setenv("API_DOCS", "False")
 
-    app_settings = AppSettings()
+    get_app_settings.cache_clear()
+    app_settings = get_app_settings()
 
     assert app_settings.DEFAULT_GROUP == "Test Group"
     assert app_settings.DEFAULT_PASSWORD == "Test Password"
-    assert app_settings.POSTGRES_USER == "mealie-test"
-    assert app_settings.POSTGRES_PASSWORD == "mealie-test"
     assert app_settings.API_PORT == 8000
     assert app_settings.API_DOCS is False
 
@@ -51,29 +27,72 @@ def test_non_default_settings(monkeypatch):
 
 def test_default_connection_args(monkeypatch):
     monkeypatch.setenv("DB_ENGINE", "sqlite")
-    app_settings = AppSettings()
-    assert re.match(r"sqlite:////.*mealie/dev/data/mealie_v0.5.0.db", app_settings.DB_URL)
+    get_app_settings.cache_clear()
+    app_settings = get_app_settings()
+    assert re.match(r"sqlite:////.*mealie*.db", app_settings.DB_URL)
 
 
 def test_pg_connection_args(monkeypatch):
     monkeypatch.setenv("DB_ENGINE", "postgres")
     monkeypatch.setenv("POSTGRES_SERVER", "postgres")
-    app_settings = AppSettings()
+    get_app_settings.cache_clear()
+    app_settings = get_app_settings()
     assert app_settings.DB_URL == "postgresql://mealie:mealie@postgres:5432/mealie"
 
 
-def test_secret_generation(tmp_path):
-    app_dirs = AppDirectories(CWD, DATA_DIR)
-    assert determine_secrets(app_dirs.DATA_DIR, False) == "shh-secret-test-key"
-    assert determine_secrets(app_dirs.DATA_DIR, True) != "shh-secret-test-key"
+@dataclass(slots=True)
+class SMTPValidationCase:
+    host: str
+    port: str
+    auth_strategy: str
+    from_name: str
+    from_email: str
+    user: str
+    password: str
+    is_valid: bool
 
-    assert determine_secrets(tmp_path, True) != "shh-secret-test-key"
+
+smtp_validation_cases = [
+    (
+        "bad_data_tls",
+        SMTPValidationCase("", "", "tls", "", "", "", "", False),
+    ),
+    (
+        "bad_data_ssl",
+        SMTPValidationCase("", "", "ssl", "", "", "", "", False),
+    ),
+    (
+        "no_auth",
+        SMTPValidationCase("email.mealie.io", "25", "none", "Mealie", "mealie@mealie.io", "", "", True),
+    ),
+    (
+        "good_data_tls",
+        SMTPValidationCase(
+            "email.mealie.io", "587", "tls", "Mealie", "mealie@mealie.io", "mealie@mealie.io", "mealie-password", True
+        ),
+    ),
+    (
+        "good_data_ssl",
+        SMTPValidationCase(
+            "email.mealie.io", "465", "tls", "Mealie", "mealie@mealie.io", "mealie@mealie.io", "mealie-password", True
+        ),
+    ),
+]
+
+smtp_cases = [x[1] for x in smtp_validation_cases]
+smtp_cases_ids = [x[0] for x in smtp_validation_cases]
 
 
-def test_set_data_dir():
-    global CWD
-    PROD_DIR = Path("/app/data")
-    DEV_DIR = CWD.parent.parent.joinpath("dev", "data")
+@pytest.mark.parametrize("data", smtp_cases, ids=smtp_cases_ids)
+def test_smtp_enable_with_bad_data_tls(data: SMTPValidationCase):
+    is_valid = AppSettings.validate_smtp(
+        data.host,
+        data.port,
+        data.from_name,
+        data.from_email,
+        data.auth_strategy,
+        data.user,
+        data.password,
+    )
 
-    assert determine_data_dir(True) == PROD_DIR
-    assert determine_data_dir(False) == DEV_DIR
+    assert is_valid is data.is_valid

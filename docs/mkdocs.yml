@@ -1,5 +1,5 @@
 site_name: Mealie
-demo_url: https://mealie-demo.hay-kot.dev/
+#demo_url: https://mealie-demo.hay-kot.dev/
 site_url: https://hay-kot.github.io/mealie/
 use_directory_urls: true
 theme:
@@ -18,8 +18,9 @@ theme:
         name: Switch to light mode
   custom_dir: docs/overrides
   features:
+    - content.code.annotate
     - navigation.top
-    # - navigation.instant
+    - navigation.instant
     - navigation.expand
     - navigation.sections
     - navigation.tabs
@@ -47,57 +48,54 @@ extra_css:
   - assets/stylesheets/custom.css
 extra_javascript:
   - assets/js/extra.js
-repo_url: https://github.com/hay-kot/mealie
+repo_url: https://github.com/hay-kot/mealie/
 repo_name: hay-kot/mealie
+edit_uri: edit/mealie-next/docs/docs/
 
 nav:
   - Home: "index.md"
   - Getting Started:
       - Introduction: "documentation/getting-started/introduction.md"
-      - Installation: "documentation/getting-started/install.md"
+      - Features: "documentation/getting-started/features.md"
       - Updating: "documentation/getting-started/updating.md"
+      - Version 1 Migration: "documentation/getting-started/migrating-to-mealie-v1.md"
+      - FAQ: "documentation/getting-started/faq.md"
       - API: "documentation/getting-started/api-usage.md"
+      - Road Map: "documentation/getting-started/roadmap.md"
 
-      - Recipes:
-          - Working With Recipes: "documentation/recipes/recipes.md"
-          - Organizing Recipes: "documentation/recipes/organizing-recipes.md"
-
-      - Users & Groups:
-          - User Settings: "documentation/users-groups/user-settings.md"
-          - Planning Meals: "documentation/users-groups/meal-planner.md"
-
-      - Admin:
-          - Dashboard: "documentation/admin/dashboard.md"
-          - Site Settings: "documentation/admin/site-settings.md"
-          - Building Pages: "documentation/admin/building-pages.md"
-          - User Management: "documentation/admin/user-management.md"
-          - Backups and Restore: "documentation/admin/backups-and-exports.md"
-          - Recipe Migration: "documentation/admin/migration-imports.md"
-
-      - Toolbox:
-          - External Notifications: "documentation/toolbox/notifications.md"
-          - Organization Tools: "documentation/toolbox/organize-tools.md"
+      - Installation:
+          - Installation Checklist: "documentation/getting-started/installation/installation-checklist.md"
+          - SQLite (Recommended): "documentation/getting-started/installation/sqlite.md"
+          - PostgreSQL: "documentation/getting-started/installation/postgres.md"
+          - Frontend Configuration: "documentation/getting-started/installation/frontend-config.md"
+          - Backend Configuration: "documentation/getting-started/installation/backend-config.md"
 
       - Community Guides:
           - iOS Shortcuts: "documentation/community-guide/ios.md"
           - Reverse Proxy (SWAG): "documentation/community-guide/swag.md"
           - Home Assistant: "documentation/community-guide/home-assistant.md"
           - Bulk Url Import: "documentation/community-guide/bulk-url-import.md"
+
   - API Reference: "api/redoc.md"
+
   - Contributors Guide:
       - Non-Code: "contributors/non-coders.md"
       - Translating: "contributors/translating.md"
       - Developers Guide:
           - Code Contributions: "contributors/developers-guide/code-contributions.md"
           - Dev Getting Started: "contributors/developers-guide/starting-dev-server.md"
-          - Guidelines: "contributors/developers-guide/general-guidelines.md"
-          - Style Guide: "contributors/developers-guide/style-guide.md"
-  - Development Road Map: "roadmap.md"
+      - Guides:
+          - Improving Ingredient Parser: "contributors/guides/ingredient-parser.md"
+
   - Change Log:
+<<<<<<< HEAD
       - v0.5.6 Bug Fixes: "changelog/v0.5.6.md"
       - v0.5.5 Bug Fixes: "changelog/v0.5.5.md"
       - v0.5.4 Bug Fixes: "changelog/v0.5.4.md"
       - v0.5.3 Bug Fixes: "changelog/v0.5.3.md"
+=======
+      - v1.0.0 Beta: "changelog/v1.0.0.md"
+>>>>>>> v1.0.0-beta-1
       - v0.5.2 Misc Updates: "changelog/v0.5.2.md"
       - v0.5.1 Bug Fixes: "changelog/v0.5.1.md"
       - v0.5.0 General Upgrades: "changelog/v0.5.0.md"

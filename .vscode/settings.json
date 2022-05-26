@@ -1,20 +1,50 @@
 {
-  "python.formatting.provider": "black",
-  "python.pythonPath": ".venv/bin/python3.9",
-  "python.linting.pylintEnabled": false,
-  "python.linting.enabled": true,
-  "python.testing.unittestEnabled": false,
-  "python.testing.nosetestsEnabled": false,
-  "python.testing.pytestEnabled": true,
-  "python.testing.autoTestDiscoverOnSaveEnabled": false,
-  "python.testing.pytestArgs": ["tests"],
+  "conventionalCommits.scopes": [
+    "frontend",
+    "docs",
+    "backend",
+    "code-generation"
+  ],
   "cSpell.enableFiletypes": ["!javascript", "!python", "!yaml"],
-  "i18n-ally.localesPaths": "frontend/src/locales/messages",
-  "i18n-ally.sourceLanguage": "en-US",
+  "cSpell.words": [
+    "chowdown",
+    "compression",
+    "hkotel",
+    "nextcloud",
+    "performant",
+    "postgres",
+    "webp"
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    "source.organizeImports": false
+  },
+  "editor.formatOnSave": true,
+  "eslint.workingDirectories": ["./frontend"],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/.hg": true,
+    "**/.svn": true,
+    "**/CVS": true
+  },
   "i18n-ally.enabledFrameworks": ["vue"],
   "i18n-ally.keystyle": "nested",
-  "cSpell.words": ["compression", "hkotel", "performant", "postgres", "webp"],
-  "search.mode": "reuseEditor",
+  "i18n-ally.localesPaths": "frontend/lang/messages",
+  "i18n-ally.sourceLanguage": "en-US",
+  "python.formatting.provider": "black",
+  "python.linting.enabled": true,
   "python.linting.flake8Enabled": true,
-  "conventionalCommits.scopes": ["frontend"]
+  "python.linting.pylintEnabled": false,
+  "python.linting.pylintArgs": ["--rcfile=${workspaceFolder}/.pylintrc"],
+  "python.testing.autoTestDiscoverOnSaveEnabled": false,
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.analysis.typeCheckingMode": "off",
+  "python.linting.mypyEnabled": true,
+  "python.sortImports.path": "${workspaceFolder}/.venv/bin/isort",
+  "search.mode": "reuseEditor",
+  "python.testing.unittestArgs": ["-v", "-s", "./tests", "-p", "test_*.py"]
 }

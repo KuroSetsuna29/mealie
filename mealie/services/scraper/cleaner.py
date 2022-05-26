@@ -2,12 +2,23 @@ import html
 import json
 import re
 from datetime import datetime, timedelta
+<<<<<<< HEAD
 from typing import List, Optional
+=======
+from typing import Optional
+>>>>>>> v1.0.0-beta-1
 
 from slugify import slugify
 from mealie.core.root_logger import get_logger
 
+<<<<<<< HEAD
 logger = get_logger()
+=======
+from mealie.core.root_logger import get_logger
+
+logger = get_logger()
+
+>>>>>>> v1.0.0-beta-1
 
 def clean(recipe_data: dict, url=None) -> dict:
     """Main entrypoint to clean a recipe extracted from the web
@@ -31,7 +42,7 @@ def clean(recipe_data: dict, url=None) -> dict:
     recipe_data["recipeIngredient"] = ingredient(recipe_data.get("recipeIngredient"))
     recipe_data["recipeInstructions"] = instructions(recipe_data.get("recipeInstructions"))
     recipe_data["image"] = image(recipe_data.get("image"))
-    recipe_data["slug"] = slugify(recipe_data.get("name"))
+    recipe_data["slug"] = slugify(recipe_data.get("name"))  # type: ignore
     recipe_data["orgURL"] = url
 
     return recipe_data
@@ -41,12 +52,11 @@ def clean_string(text: str) -> str:
     if isinstance(text, list):
         text = text[0]
 
-    print(type(text))
+    if isinstance(text, int):
+        text = str(text)
 
     if text == "" or text is None:
         return ""
-
-    print(text)
 
     cleaned_text = html.unescape(text)
     cleaned_text = re.sub("<[^<]+?>", "", cleaned_text)
@@ -58,15 +68,59 @@ def clean_string(text: str) -> str:
 
 
 def category(category: str):
+    if isinstance(category, list) and len(category) > 0 and isinstance(category[0], dict):
+        # If the category is a list of dicts, it's probably from a migration
+        # validate that the required fields are present
+        valid = []
+        for cat in category:
+            if "name" in cat and "slug" in cat:
+                valid.append(cat)
+
+        return valid
+
     if isinstance(category, str) and category != "":
         return [category]
-    else:
-        return []
+
+    return []
 
 
-def clean_html(raw_html):
-    cleanr = re.compile("<.*?>")
-    return re.sub(cleanr, "", raw_html)
+def clean_nutrition(nutrition: Optional[dict]) -> dict[str, str]:
+    # Assumes that all units are supplied in grams, except sodium which may be in mg.
+
+    # Fn only expects a dict[str,str]. Other structures should not be parsed.
+    if not isinstance(nutrition, dict):
+        return {}
+
+    # Allow for commas as decimals (common in Europe)
+    # Compile once for efficiency
+    re_match_digits = re.compile(r"\d+([.,]\d+)?")
+
+    output_nutrition = {}
+    for key, val in nutrition.items():
+        # If the val contains digits matching the regex, add the first match to the output dict.
+        # Handle unexpected datastructures safely.
+        try:
+            if matched_digits := re_match_digits.search(val):
+                output_nutrition[key] = matched_digits.group(0)
+        except Exception:
+            continue
+
+    output_nutrition = {key: val.replace(",", ".") for key, val in output_nutrition.items()}
+
+    if (
+        "sodiumContent" in nutrition
+        and type(nutrition["sodiumContent"]) == str
+        and "m" not in nutrition["sodiumContent"]
+        and "g" in nutrition["sodiumContent"]
+    ):
+        # Sodium is in grams. Parse its value, multiple by 1k and return to string.
+        try:
+            output_nutrition["sodiumContent"] = str(float(output_nutrition["sodiumContent"]) * 1000)
+        except ValueError:
+            # Could not parse sodium content as float, so don't touch it.
+            pass
+
+    return output_nutrition
 
 
 def clean_nutrition(nutrition: Optional[dict]) -> dict[str, str]:
@@ -116,7 +170,7 @@ def image(image=None) -> str:
         raise Exception(f"Unrecognised image URL format: {image}")
 
 
-def instructions(instructions) -> List[dict]:
+def instructions(instructions) -> list[dict]:
     try:
         instructions = json.loads(instructions)
     except Exception:
@@ -151,14 +205,15 @@ def instructions(instructions) -> List[dict]:
             sectionSteps = []
             for step in instructions:
                 if step["@type"] == "HowToSection":
-                    [sectionSteps.append(item) for item in step["itemListElement"]]
+                    for sectionStep in step["itemListElement"]:
+                        sectionSteps.append(sectionStep)
 
             if len(sectionSteps) > 0:
                 return [{"text": _instruction(step["text"])} for step in sectionSteps if step["@type"] == "HowToStep"]
 
             return [{"text": _instruction(step["text"])} for step in instructions if step["@type"] == "HowToStep"]
         except Exception as e:
-            print(e)
+            logger.error(e)
             # Not "@type", try "type"
             try:
                 return [
@@ -172,8 +227,17 @@ def instructions(instructions) -> List[dict]:
     else:
         raise Exception(f"Unrecognised instruction format: {instructions}")
 
+    return []
+
 
 def _instruction(line) -> str:
+    if isinstance(line, dict):
+        # Some Recipes dotnot adhear to schema
+        try:
+            line = line["text"]
+        except Exception:
+            line = ""
+
     clean_line = clean_string(line.strip())
     # Some sites erroneously escape their strings on multiple levels
     while not clean_line == (clean_line := clean_string(clean_line)):
@@ -181,7 +245,7 @@ def _instruction(line) -> str:
     return clean_line
 
 
-def ingredient(ingredients: list) -> str:
+def ingredient(ingredients: list | None) -> list[str]:
     if ingredients:
         return [clean_string(ing) for ing in ingredients]
     else:
@@ -196,18 +260,23 @@ def yield_amount(yld) -> str:
 
 
 def clean_time(time_entry):
-    if time_entry is None:
+    if time_entry is None or time_entry == "" or time_entry == " ":
         return None
     elif isinstance(time_entry, timedelta):
-        pretty_print_timedelta(time_entry)
+        return pretty_print_timedelta(time_entry)
     elif isinstance(time_entry, datetime):
-        print(time_entry)
+        pass
+        # print(time_entry)
     elif isinstance(time_entry, str):
         try:
             time_delta_object = parse_duration(time_entry)
             return pretty_print_timedelta(time_delta_object)
         except ValueError:
             logger.error(f"Could not parse time_entry `{time_entry}`")
+<<<<<<< HEAD
+=======
+            return str(time_entry)
+>>>>>>> v1.0.0-beta-1
     else:
         return str(time_entry)
 
@@ -234,20 +303,31 @@ def parse_duration(iso_duration):
     # convert parsed years and months to specific number of days.
 
     times = {"days": 0, "hours": 0, "minutes": 0, "seconds": 0}
+<<<<<<< HEAD
     for unit, value in times.items():
+=======
+    for unit, _ in times.items():
+>>>>>>> v1.0.0-beta-1
         if m.group(unit):
             times[unit] = int(float(m.group(unit)))
 
     return timedelta(**times)
 
 
-def pretty_print_timedelta(t, max_components=None, max_decimal_places=2):
+def pretty_print_timedelta(t: timedelta, max_components=None, max_decimal_places=2):
     """
     Print a pretty string for a timedelta.
+<<<<<<< HEAD
     For example datetime.timedelta(days=2, seconds=17280) will be printed as '2 days 4 Hours 48 Minutes'. Setting max_components to e.g. 1 will change this to '2.2 days', where the
     number of decimal points can also be set.
     """
 
+=======
+    For example datetime.timedelta(days=2, seconds=17280) will be printed as '2 days 4 Hours 48 Minutes'.
+    Setting max_components to e.g. 1 will change this to '2.2 days', where the number of decimal
+    points can also be set.
+    """
+>>>>>>> v1.0.0-beta-1
     time_scale_names_dict = {
         timedelta(days=365): "year",
         timedelta(days=1): "day",
@@ -274,3 +354,35 @@ def pretty_print_timedelta(t, max_components=None, max_decimal_places=2):
     if out_list == []:
         return "none"
     return " ".join(out_list)
+<<<<<<< HEAD
+=======
+
+
+def clean_tags(data: str | list[str]) -> list[str]:
+    """
+    Gets keywords as a list or natural language list and returns them into a list of strings of individual tags
+    """
+    if data is None:
+        return []
+
+    if isinstance(data, list):
+        all_str = True
+        i = 0
+        while all_str and i < len(data):
+            all_str = isinstance(data[i], str)
+            i = i + 1
+
+        if all_str:
+            return data
+        return []
+
+    if isinstance(data, str):
+        tag_list = data.split(",")
+
+        for i in range(len(tag_list)):
+            tag_list[i] = tag_list[i].strip().capitalize()
+
+        return tag_list
+
+    return []
+>>>>>>> v1.0.0-beta-1

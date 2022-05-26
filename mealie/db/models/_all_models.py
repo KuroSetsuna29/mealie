@@ -1,9 +1,5 @@
-from mealie.db.models.event import *
-from mealie.db.models.group import *
-from mealie.db.models.mealplan import *
-from mealie.db.models.recipe.recipe import *
-from mealie.db.models.settings import *
-from mealie.db.models.shopping_list import *
-from mealie.db.models.sign_up import *
-from mealie.db.models.theme import *
-from mealie.db.models.users import *
+from .group import *
+from .labels import *
+from .recipe.recipe import *  # type: ignore
+from .server import *
+from .users import *

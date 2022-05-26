@@ -1,53 +1,123 @@
 # Development: Getting Started
 
+!!! warning
+    Be sure to use the [Nightly version](https://nightly.mealie.io/) of the docs to ensure you're up to date with
+    the latest changes.
+
 After reading through the [Code Contributions Guide](../developers-guide/code-contributions.md) and forking the repo you can start working. This project is developed with :whale: docker and as such you will be greatly aided by using docker for development. It's not necessary but it is helpful.
 
-## With Docker
+## With VS Code Dev Containers
+
 Prerequisites
 
 - Docker
-- docker-compose
+- Visual Studio Code
 
-You can easily start the development stack by running `make docker-dev` in the root of the project directory. This will run and build the docker-compose.dev.yml file.
+First ensure that docker is running. Then when you clone the repo and open with VS Code you should see a popup asking you to reopen the project inside a development container. Click yes and it will build the development container and run the setup required to run both the backend API and the frontend webserver. This also pre-configures pre-commit hooks to ensure that the code is up to date before committing.
 
+<<<<<<< HEAD
 On Windows, the `mealie/run.sh` file must have LF line endings, or the mealie-api container will fail to start with the error: `/app/mealie/run.sh: not found`.
 
 ## Without Docker
 Prerequisites
+=======
+Checkout the makefile for all of the available commands.
 
-- Python 3.9+
-- Poetry
-- Nodejs
-- npm
+!!! tip
+    For slow terminal checkout the solution in this [GitHub Issue](https://github.com/microsoft/vscode/issues/133215)
 
-Once the prerequisites are installed you can cd into the project base directory and run `make setup` to install the python and node dependencies. Once that is complete you can run `make backend` and `make frontend` to start the backend and frontend servers. 
+    ```bash
+    git config oh-my-zsh.hide-info 1
+    ```
 
-## Make File Reference 
+## Without Dev Containers
+### Prerequisites
 
-Run `make help` for reference
+- [Python 3.10](https://www.python.org/downloads/)
+- [Poetry](https://python-poetry.org/docs/#installation)
+- [Node v16.x](https://nodejs.org/en/)
+- [yarn](https://classic.yarnpkg.com/lang/en/docs/install/#mac-stable)
+
+### Installing Dependencies
+
+Once the prerequisites are installed you can cd into the project base directory and run `make setup` to install the python and node dependencies.
+
+=== "Linux / MacOs"
+
+    ```bash
+    # Naviate To The Root Directory
+    cd /path/to/project
+
+    # Utilize the Makefile to Install Dependencies
+    make setup
+    ```
+
+=== "Windows"
+
+    ``` powershell
+    # Install Python Dependencies
+    Set-Directory -Path "C:\path\to\project"
+    poetry install
+
+    # Install Node Dependencies
+    Set-Directory frontend
+    yarn install
+    ```
+>>>>>>> v1.0.0-beta-1
+
+### Setting ENV Variables
+
+Before you start the server you MUST copy the `template.env` and `frontend/template.env` files to their respective locations with the name `.env` and `frontend/.env` respectively. The application will-not run without these files.
+
+### Starting The Server
+
+Once that is complete you're ready to start the servers. You'll need two shells open, One for the server and one for the frontend.
+
+=== "Linux / MacOs"
+
+    ```bash
+    # Terminal #1
+    make backend
+
+    # Terminal #2
+    make frontend
+    ```
+
+=== "Windows"
+
+    ``` powershell
+    # Terminal # 1
+	poetry run python mealie/db/init_db.py # Initialize the database
+	poetry run python mealie/app.py # start application
+
+    # Terminal # 2
+    Set-Directory frontend
+    yarn run dev
+    ```
+
+## Make File Reference
+
+Run `make help` for reference. If you're on a system that doesn't support makefiles in most cases you can use the commands directly in your terminal by copy/pasting them from the Makefile.
 
 ```
-clean-purge          ⚠️ Removes All Developer Data for a fresh server start
-clean                🧹 Remove all build, test, coverage and Python artifacts
+docs                 📄 Start Mkdocs Development Server
+code-gen             🤖 Run Code-Gen Scripts
+setup                🏗  Setup Development Instance
+setup-model          🤖 Get the latest NLP CRF++ Model
+clean-data           ⚠️  Removes All Developer Data for a fresh server start
 clean-pyc            🧹 Remove Python file artifacts
 clean-test           🧹 Remove test and coverage artifacts
-test-all             🧪 Check Lint Format and Testing
-test                 🧪 Run tests quickly with the default Python
-lint                 🧺 Check style with flake8
-coverage             ☂️ Check code coverage quickly with the default Python
-setup                🏗 Setup Development Instance
+backend-clean        🧹 Remove all build, test, coverage and Python artifacts
+backend-test         🧪 Run tests quickly with the default Python
+backend-format       🧺 Format, Check and Flake8
+backend-all          🧪 Runs all the backend checks and tests
+backend-coverage     ☂️  Check code coverage quickly with the default Python
 backend              🎬 Start Mealie Backend Development Server
 frontend             🎬 Start Mealie Frontend Development Server
-frontend-build       🏗 Build Frontend in frontend/dist
-docs                 📄 Start Mkdocs Development Server
+frontend-build       🏗  Build Frontend in frontend/dist
+frontend-generate    🏗  Generate Code for Frontend
+frontend-lint        🧺 Run yarn lint
 docker-dev           🐳 Build and Start Docker Development Stack
 docker-prod          🐳 Build and Start Docker Production Stack
-code-gen             🤖 Run Code-Gen Scripts
 
 ```
-
-## Before you Commit! 
-
-Before you commit any changes on the backend/python side you'll want to run `make format` to format all the code with black. `make lint` to check with flake8, and `make test` to run pytests. You can also use `make test-all` to run both `lint` and `test`. 
-
-Run into another issue? [Ask for help on discord](https://discord.gg/QuStdQGSGK)

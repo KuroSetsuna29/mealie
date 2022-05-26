@@ -1,71 +1,79 @@
 import sqlalchemy as sa
 import sqlalchemy.orm as orm
-from mealie.core import root_logger
-from mealie.db.models.model_base import SqlAlchemyBase
 from slugify import slugify
 from sqlalchemy.orm import validates
 
+from mealie.core import root_logger
+
+from .._model_base import BaseMixins, SqlAlchemyBase
+from .._model_utils.guid import GUID
+
 logger = root_logger.get_logger()
 
-site_settings2categories = sa.Table(
-    "site_settings2categories",
+
+group_to_categories = sa.Table(
+    "group_to_categories",
     SqlAlchemyBase.metadata,
-    sa.Column("site_settings.id", sa.Integer, sa.ForeignKey("site_settings.id")),
-    sa.Column("category_id", sa.Integer, sa.ForeignKey("categories.id")),
+    sa.Column("group_id", GUID, sa.ForeignKey("groups.id")),
+    sa.Column("category_id", GUID, sa.ForeignKey("categories.id")),
 )
 
-group2categories = sa.Table(
-    "group2categories",
+plan_rules_to_categories = sa.Table(
+    "plan_rules_to_categories",
     SqlAlchemyBase.metadata,
-    sa.Column("group_id", sa.Integer, sa.ForeignKey("groups.id")),
-    sa.Column("category_id", sa.Integer, sa.ForeignKey("categories.id")),
+    sa.Column("group_plan_rule_id", GUID, sa.ForeignKey("group_meal_plan_rules.id")),
+    sa.Column("category_id", GUID, sa.ForeignKey("categories.id")),
 )
 
-recipes2categories = sa.Table(
-    "recipes2categories",
+recipes_to_categories = sa.Table(
+    "recipes_to_categories",
     SqlAlchemyBase.metadata,
-    sa.Column("recipe_id", sa.Integer, sa.ForeignKey("recipes.id")),
-    sa.Column("category_id", sa.Integer, sa.ForeignKey("categories.id")),
+    sa.Column("recipe_id", GUID, sa.ForeignKey("recipes.id")),
+    sa.Column("category_id", GUID, sa.ForeignKey("categories.id")),
 )
 
-custom_pages2categories = sa.Table(
-    "custom_pages2categories",
+cookbooks_to_categories = sa.Table(
+    "cookbooks_to_categories",
     SqlAlchemyBase.metadata,
-    sa.Column("custom_page_id", sa.Integer, sa.ForeignKey("custom_pages.id")),
-    sa.Column("category_id", sa.Integer, sa.ForeignKey("categories.id")),
+    sa.Column("cookbook_id", GUID, sa.ForeignKey("cookbooks.id")),
+    sa.Column("category_id", GUID, sa.ForeignKey("categories.id")),
 )
 
 
-class Category(SqlAlchemyBase):
+class Category(SqlAlchemyBase, BaseMixins):
     __tablename__ = "categories"
-    id = sa.Column(sa.Integer, primary_key=True)
+    __table_args__ = (sa.UniqueConstraint("slug", "group_id", name="category_slug_group_id_key"),)
+
+    # ID Relationships
+    group_id = sa.Column(GUID, sa.ForeignKey("groups.id"), nullable=False, index=True)
+    group = orm.relationship("Group", back_populates="categories", foreign_keys=[group_id])
+
+    id = sa.Column(GUID, primary_key=True, default=GUID.generate)
     name = sa.Column(sa.String, index=True, nullable=False)
-    slug = sa.Column(sa.String, index=True, unique=True, nullable=False)
-    recipes = orm.relationship("RecipeModel", secondary=recipes2categories, back_populates="recipe_category")
+    slug = sa.Column(sa.String, index=True, nullable=False)
+    recipes = orm.relationship("RecipeModel", secondary=recipes_to_categories, back_populates="recipe_category")
 
     @validates("name")
     def validate_name(self, key, name):
         assert name != ""
         return name
 
-    def __init__(self, name, session=None) -> None:
+    def __init__(self, name, group_id, **_) -> None:
+        self.group_id = group_id
         self.name = name.strip()
         self.slug = slugify(name)
 
-    def update(self, name, session=None) -> None:
-        self.__init__(name, session)
+    @classmethod  # TODO: Remove this
+    def get_ref(cls, match_value: str, session=None):  # type: ignore
+        if not session or not match_value:
+            return None
 
-    @staticmethod
-    def get_ref(session, slug: str):
-        return session.query(Category).filter(Category.slug == slug).one()
+        slug = slugify(match_value)
 
-    @staticmethod
-    def create_if_not_exist(session, name: str = None):
-        test_slug = slugify(name)
-        result = session.query(Category).filter(Category.slug == test_slug).one_or_none()
+        result = session.query(Category).filter(Category.slug == slug).one_or_none()
         if result:
             logger.debug("Category exists, associating recipe")
             return result
         else:
-            logger.debug("Category doesn't exists, creating tag")
-            return Category(name=name)
+            logger.debug("Category doesn't exists, creating Category")
+            return Category(name=match_value)  # type: ignore

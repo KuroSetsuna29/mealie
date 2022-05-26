@@ -28,7 +28,6 @@ init() {
 
     # Initialize Database Prerun
     poetry run python /app/mealie/db/init_db.py
-    poetry run python /app/mealie/services/image/minify.py
 }
 
 # Migrations
@@ -48,9 +47,6 @@ else
 
     add_user
     init
-
-    # Web Server
-    caddy start --config /app/Caddyfile
 
     # Start API
     # uvicorn mealie.app:app --host 0.0.0.0 --port 9000

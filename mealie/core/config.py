@@ -1,87 +1,38 @@
 import os
-import secrets
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional, Union
 
 import dotenv
-from pydantic import BaseSettings, Field, PostgresDsn, validator
 
+<<<<<<< HEAD
 APP_VERSION = "v0.5.6"
 DB_VERSION = "v0.5.0"
+=======
+from mealie.core.settings import app_settings_constructor
+
+from .settings import AppDirectories, AppSettings
+from .settings.static import APP_VERSION, DB_VERSION
+
+APP_VERSION
+DB_VERSION
+>>>>>>> v1.0.0-beta-1
 
 CWD = Path(__file__).parent
 BASE_DIR = CWD.parent.parent
-
 ENV = BASE_DIR.joinpath(".env")
 
 dotenv.load_dotenv(ENV)
 PRODUCTION = os.getenv("PRODUCTION", "True").lower() in ["true", "1"]
+TESTING = os.getenv("TESTING", "False").lower() in ["true", "1"]
 
 
-def determine_data_dir(production: bool) -> Path:
-    global CWD
-    if production:
-        return Path("/app/data")
+def determine_data_dir() -> Path:
+    global PRODUCTION, TESTING, BASE_DIR
 
-    return CWD.parent.parent.joinpath("dev", "data")
+    if TESTING:
+        return BASE_DIR.joinpath("tests/.temp")
 
-
-def determine_secrets(data_dir: Path, production: bool) -> str:
-    if not production:
-        return "shh-secret-test-key"
-
-    secrets_file = data_dir.joinpath(".secret")
-    if secrets_file.is_file():
-        with open(secrets_file, "r") as f:
-            return f.read()
-    else:
-        with open(secrets_file, "w") as f:
-            new_secret = secrets.token_hex(32)
-            f.write(new_secret)
-        return new_secret
-
-
-# General
-DATA_DIR = determine_data_dir(PRODUCTION)
-
-
-class AppDirectories:
-    def __init__(self, cwd, data_dir) -> None:
-        self.DATA_DIR: Path = data_dir
-        self.WEB_PATH: Path = cwd.joinpath("dist")
-        self.IMG_DIR: Path = data_dir.joinpath("img")
-        self.BACKUP_DIR: Path = data_dir.joinpath("backups")
-        self.DEBUG_DIR: Path = data_dir.joinpath("debug")
-        self.MIGRATION_DIR: Path = data_dir.joinpath("migration")
-        self.NEXTCLOUD_DIR: Path = self.MIGRATION_DIR.joinpath("nextcloud")
-        self.CHOWDOWN_DIR: Path = self.MIGRATION_DIR.joinpath("chowdown")
-        self.TEMPLATE_DIR: Path = data_dir.joinpath("templates")
-        self.USER_DIR: Path = data_dir.joinpath("users")
-        self.RECIPE_DATA_DIR: Path = data_dir.joinpath("recipes")
-        self.TEMP_DIR: Path = data_dir.joinpath(".temp")
-
-        self.ensure_directories()
-
-    def ensure_directories(self):
-        required_dirs = [
-            self.IMG_DIR,
-            self.BACKUP_DIR,
-            self.DEBUG_DIR,
-            self.MIGRATION_DIR,
-            self.TEMPLATE_DIR,
-            self.NEXTCLOUD_DIR,
-            self.CHOWDOWN_DIR,
-            self.RECIPE_DATA_DIR,
-            self.USER_DIR,
-        ]
-
-        for dir in required_dirs:
-            dir.mkdir(parents=True, exist_ok=True)
-
-
-app_dirs = AppDirectories(CWD, DATA_DIR)
-
-
+<<<<<<< HEAD
 def determine_sqlite_path(path=False, suffix=DB_VERSION) -> str:
     global app_dirs
     db_path = app_dirs.DATA_DIR.joinpath(f"mealie_{suffix}.db")  # ! Temporary Until Alembic
@@ -159,24 +110,27 @@ class AppSettings(BaseSettings):
     SCHEDULER_DATABASE = f"sqlite:///{app_dirs.DATA_DIR.joinpath('scheduler.db')}"
 
     TOKEN_TIME: int = 2  # Time in Hours
+=======
+    if PRODUCTION:
+        return Path("/app/data")
+>>>>>>> v1.0.0-beta-1
 
-    # Not Used!
-    SFTP_USERNAME: Optional[str]
-    SFTP_PASSWORD: Optional[str]
+    return BASE_DIR.joinpath("dev", "data")
 
-    # Recipe Default Settings
-    RECIPE_PUBLIC: bool = True
-    RECIPE_SHOW_NUTRITION: bool = True
-    RECIPE_SHOW_ASSETS: bool = True
-    RECIPE_LANDSCAPE_VIEW: bool = True
-    RECIPE_DISABLE_COMMENTS: bool = False
-    RECIPE_DISABLE_AMOUNT: bool = False
 
+<<<<<<< HEAD
     AUTO_BACKUP_ENABLED: bool = False
 
     class Config:
         env_file = BASE_DIR.joinpath(".env")
         env_file_encoding = "utf-8"
+=======
+@lru_cache
+def get_app_dirs() -> AppDirectories:
+    return AppDirectories(determine_data_dir())
+>>>>>>> v1.0.0-beta-1
 
 
-settings = AppSettings()
+@lru_cache
+def get_app_settings() -> AppSettings:
+    return app_settings_constructor(env_file=ENV, production=PRODUCTION, data_dir=determine_data_dir())

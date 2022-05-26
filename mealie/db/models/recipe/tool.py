@@ -1,12 +1,39 @@
-import sqlalchemy as sa
-from mealie.db.models.model_base import SqlAlchemyBase
+from slugify import slugify
+from sqlalchemy import Boolean, Column, ForeignKey, String, Table, UniqueConstraint, orm
+
+from mealie.db.models._model_base import BaseMixins, SqlAlchemyBase
+from mealie.db.models._model_utils import auto_init
+from mealie.db.models._model_utils.guid import GUID
+
+recipes_to_tools = Table(
+    "recipes_to_tools",
+    SqlAlchemyBase.metadata,
+    Column("recipe_id", GUID, ForeignKey("recipes.id")),
+    Column("tool_id", GUID, ForeignKey("tools.id")),
+)
+
+cookbooks_to_tools = Table(
+    "cookbooks_to_tools",
+    SqlAlchemyBase.metadata,
+    Column("cookbook_id", GUID, ForeignKey("cookbooks.id")),
+    Column("tool_id", GUID, ForeignKey("tools.id")),
+)
 
 
-class Tool(SqlAlchemyBase):
+class Tool(SqlAlchemyBase, BaseMixins):
     __tablename__ = "tools"
-    id = sa.Column(sa.Integer, primary_key=True)
-    parent_id = sa.Column(sa.Integer, sa.ForeignKey("recipes.id"))
-    tool = sa.Column(sa.String)
+    __table_args__ = (UniqueConstraint("slug", "group_id", name="tools_slug_group_id_key"),)
+    id = Column(GUID, primary_key=True, default=GUID.generate)
 
-    def __init__(self, tool) -> None:
-        self.tool = tool
+    # ID Relationships
+    group_id = Column(GUID, ForeignKey("groups.id"), nullable=False)
+    group = orm.relationship("Group", back_populates="tools", foreign_keys=[group_id])
+
+    name = Column(String, index=True, unique=True, nullable=False)
+    slug = Column(String, index=True, unique=True, nullable=False)
+    on_hand = Column(Boolean, default=False)
+    recipes = orm.relationship("RecipeModel", secondary=recipes_to_tools, back_populates="tools")
+
+    @auto_init()
+    def __init__(self, name, **_) -> None:
+        self.slug = slugify(name)

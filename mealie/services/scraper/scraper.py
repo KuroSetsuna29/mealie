@@ -1,18 +1,14 @@
-import json
 from enum import Enum
+<<<<<<< HEAD
 from typing import Any, Callable, Optional
+=======
+>>>>>>> v1.0.0-beta-1
 from uuid import uuid4
 
-import requests
 from fastapi import HTTPException, status
-from mealie.core.config import app_dirs
-from mealie.core.root_logger import get_logger
-from mealie.schema.recipe import Recipe, RecipeStep
-from mealie.services.image.image import scrape_image
-from mealie.services.scraper import cleaner, open_graph
-from recipe_scrapers import NoSchemaFoundInWildMode, SchemaScraperFactory, WebsiteNotImplementedError, scrape_me
 from slugify import slugify
 
+<<<<<<< HEAD
 LAST_JSON = app_dirs.DEBUG_DIR.joinpath("last_recipe.json")
 
 
@@ -43,8 +39,15 @@ def create_from_url(url: str) -> Recipe:
     if new_recipe.name is None or new_recipe.name == "":
         new_recipe.name = "No Recipe Found" + uuid4().hex
         new_recipe.slug = slugify(new_recipe.name)
+=======
+from mealie.core.root_logger import get_logger
+from mealie.pkgs import cache
+from mealie.schema.recipe import Recipe
+from mealie.services.recipe.recipe_data_service import RecipeDataService
+from mealie.services.scraper.scraped_extras import ScrapedExtras
+>>>>>>> v1.0.0-beta-1
 
-    return new_recipe
+from .recipe_scraper import RecipeScraper
 
 
 class ParserErrors(str, Enum):
@@ -53,6 +56,7 @@ class ParserErrors(str, Enum):
     CONNECTION_ERROR = "CONNECTION_ERROR"
 
 
+<<<<<<< HEAD
 def extract_open_graph_values(url) -> Optional[dict]:
     r = requests.get(url)
     recipe = open_graph.basic_recipe_from_opengraph(r.text, url)
@@ -65,14 +69,17 @@ def scrape_from_url(url: str):
     """Entry function to scrape a recipe from a url
     This will determine if a url can be parsed and return None if not, to allow another parser to try.
     This keyword is used on the frontend to reference a localized string to present on the UI.
+=======
+def create_from_url(url: str) -> tuple[Recipe, ScrapedExtras]:
+    """Main entry point for generating a recipe from a URL. Pass in a URL and
+    a Recipe object will be returned if successful.
+>>>>>>> v1.0.0-beta-1
 
     Args:
-        url (str): String Representing the URL
-
-    Raises:
-        HTTPException: 400_BAD_REQUEST - See ParserErrors Class for Key Details
+        url (str): a valid string representing a URL
 
     Returns:
+<<<<<<< HEAD
         Optional[Scraped schema for cleaning]
     """
     try:
@@ -116,10 +123,17 @@ def clean_scraper(scraped_data: SchemaScraperFactory.SchemaScraper, url: str) ->
                 value = scraped_data.schema.data.get(get_attr)
             except Exception:
                 logger.error(f"Error parsing recipe attribute '{get_attr}'")
+=======
+        Recipe: Recipe Object
+    """
+    scraper = RecipeScraper()
+    new_recipe, extras = scraper.scrape(url)
+>>>>>>> v1.0.0-beta-1
 
-        if clean_func:
-            value = clean_func(value)
+    if not new_recipe:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, {"details": ParserErrors.BAD_RECIPE_DATA.value})
 
+<<<<<<< HEAD
         return value
 
     def get_instructions() -> list[dict]:
@@ -156,22 +170,24 @@ def clean_scraper(scraped_data: SchemaScraperFactory.SchemaScraper, url: str) ->
         perform_time=cook_time,
         org_url=url,
     )
+=======
+    new_recipe.id = uuid4()
+    logger = get_logger()
+    logger.info(f"Image {new_recipe.image}")
+>>>>>>> v1.0.0-beta-1
 
+    recipe_data_service = RecipeDataService(new_recipe.id)
 
-def download_image_for_recipe(slug, image_url) -> dict:
-    img_name = None
     try:
-        img_path = scrape_image(image_url, slug)
-        img_name = img_path.name
+        recipe_data_service.scrape_image(new_recipe.image)
+        new_recipe.slug = slugify(new_recipe.name)
+        new_recipe.image = cache.new_key(4)
     except Exception as e:
-        logger.error(f"Error Scraping Image: {e}")
-        img_name = None
+        recipe_data_service.logger.exception(f"Error Scraping Image: {e}")
+        new_recipe.image = "no image"
 
-    return img_name or "no image"
+    if new_recipe.name is None or new_recipe.name == "":
+        new_recipe.name = f"No Recipe Name Found - {str(uuid4())}"
+        new_recipe.slug = slugify(new_recipe.name)
 
-
-def dump_last_json(recipe_data: dict):
-    with open(LAST_JSON, "w") as f:
-        f.write(json.dumps(recipe_data, indent=4, default=str))
-
-    return
+    return new_recipe, extras

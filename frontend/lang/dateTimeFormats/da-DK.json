@@ -1,0 +1,21 @@
+{
+  "short": {
+    "month": "kort",
+    "day": "numerisk",
+    "weekday": "lang"
+  },
+  "medium": {
+    "month": "lang",
+    "day": "numerisk",
+    "weekday": "lang",
+    "year": "numerisk"
+  },
+  "long": {
+    "year": "numerisk",
+    "month": "lang",
+    "day": "numerisk",
+    "weekday": "lang",
+    "hour": "numerisk",
+    "minute": "numerisk"
+  }
+}

@@ -1,10 +1,11 @@
-import json
-import shutil
+from functools import cached_property
 from shutil import copyfileobj
 from zipfile import ZipFile
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, status
+import sqlalchemy
+from fastapi import BackgroundTasks, Depends, File, Form, HTTPException, status
 from fastapi.datastructures import UploadFile
+<<<<<<< HEAD
 from mealie.core.config import settings
 from mealie.core.root_logger import get_logger
 from mealie.db.database import db
@@ -17,10 +18,16 @@ from mealie.services.events import create_recipe_event
 from mealie.services.image.image import scrape_image, write_image
 from mealie.services.recipe.media import check_assets, delete_assets
 from mealie.services.scraper.scraper import create_from_url, scrape_from_url
+=======
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+>>>>>>> v1.0.0-beta-1
 from slugify import slugify
 from sqlalchemy.orm.session import Session
 from starlette.responses import FileResponse
 
+<<<<<<< HEAD
 user_router = UserAPIRouter(prefix="/api/recipes", tags=["Recipe CRUD"])
 public_router = APIRouter(prefix="/api/recipes", tags=["Recipe CRUD"])
 logger = get_logger()
@@ -122,127 +129,346 @@ async def create_recipe_from_zip(
     recipe: Recipe = db.recipes.create(session, Recipe(**recipe_dict))
 
     write_image(recipe.slug, recipe_image, "webp")
-
-    return recipe
-
-
-@public_router.get("/{recipe_slug}/zip")
-async def get_recipe_as_zip(
-    recipe_slug: str, session: Session = Depends(generate_session), temp_path=Depends(temporary_zip_path)
-):
-    """ Get a Recipe and It's Original Image as a Zip File """
-    recipe: Recipe = db.recipes.get(session, recipe_slug)
-
-    image_asset = recipe.image_dir.joinpath(RecipeImageTypes.original.value)
-
-    with ZipFile(temp_path, "w") as myzip:
-        myzip.writestr(f"{recipe_slug}.json", recipe.json())
-
-        if image_asset.is_file():
-            myzip.write(image_asset, arcname=image_asset.name)
-
-    return FileResponse(temp_path, filename=f"{recipe_slug}.zip")
-
-
-@user_router.put("/{recipe_slug}")
-def update_recipe(
-    recipe_slug: str,
-    data: Recipe,
-    session: Session = Depends(generate_session),
-):
-    """ Updates a recipe by existing slug and data. """
-
-    recipe: Recipe = db.recipes.update(session, recipe_slug, data.dict())
-
-    check_assets(original_slug=recipe_slug, recipe=recipe)
-
-    return recipe
+=======
+from mealie.core import exceptions
+from mealie.core.dependencies import temporary_zip_path
+from mealie.core.dependencies.dependencies import temporary_dir, validate_recipe_token
+from mealie.core.security import create_recipe_slug_token
+from mealie.pkgs import cache
+from mealie.repos.all_repositories import get_repositories
+from mealie.repos.repository_recipes import RepositoryRecipes
+from mealie.routes._base import BaseUserController, controller
+from mealie.routes._base.mixins import HttpRepo
+from mealie.routes._base.routers import UserAPIRouter
+from mealie.schema.query import GetAll
+from mealie.schema.recipe import Recipe, RecipeImageTypes, ScrapeRecipe
+from mealie.schema.recipe.recipe import CreateRecipe, CreateRecipeByUrlBulk, RecipeSummary
+from mealie.schema.recipe.recipe_asset import RecipeAsset
+from mealie.schema.recipe.recipe_scraper import ScrapeRecipeTest
+from mealie.schema.recipe.request_helpers import RecipeZipTokenResponse, UpdateImageResponse
+from mealie.schema.response.responses import ErrorResponse
+from mealie.schema.server.tasks import ServerTaskNames
+from mealie.services import urls
+from mealie.services.event_bus_service.event_bus_service import EventBusService
+from mealie.services.event_bus_service.message_types import EventTypes
+from mealie.services.recipe.recipe_data_service import RecipeDataService
+from mealie.services.recipe.recipe_service import RecipeService
+from mealie.services.recipe.template_service import TemplateService
+from mealie.services.scraper.scraped_extras import ScraperContext
+from mealie.services.scraper.scraper import create_from_url
+from mealie.services.scraper.scraper_strategies import RecipeScraperPackage
+from mealie.services.server_tasks.background_executory import BackgroundExecutor
+>>>>>>> v1.0.0-beta-1
 
 
-@user_router.patch("/{recipe_slug}")
-def patch_recipe(
-    recipe_slug: str,
-    data: Recipe,
-    session: Session = Depends(generate_session),
-):
-    """ Updates a recipe by existing slug and data. """
+class BaseRecipeController(BaseUserController):
+    @cached_property
+    def repo(self) -> RepositoryRecipes:
+        return self.repos.recipes.by_group(self.group_id)
 
-    recipe: Recipe = db.recipes.patch(
-        session, recipe_slug, new_data=data.dict(exclude_unset=True, exclude_defaults=True)
-    )
+    @cached_property
+    def service(self) -> RecipeService:
+        return RecipeService(self.repos, self.user, self.group)
 
-    check_assets(original_slug=recipe_slug, recipe=recipe)
-
-    return recipe
+    @cached_property
+    def mixins(self):
+        return HttpRepo[CreateRecipe, Recipe, Recipe](self.repo, self.deps.logger)
 
 
-@user_router.delete("/{recipe_slug}")
-def delete_recipe(
-    background_tasks: BackgroundTasks,
-    recipe_slug: str,
-    session: Session = Depends(generate_session),
-    current_user=Depends(get_current_user),
-):
-    """ Deletes a recipe by slug """
-
-    try:
-        recipe: Recipe = db.recipes.delete(session, recipe_slug)
-        delete_assets(recipe_slug=recipe_slug)
-    except Exception:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST)
-
-    background_tasks.add_task(
-        create_recipe_event, "Recipe Deleted", f"'{recipe.name}' deleted by {current_user.full_name}", session=session
-    )
-
-    return recipe
+class RecipeGetAll(GetAll):
+    load_food: bool = False
 
 
-@user_router.put("/{recipe_slug}/image")
-def update_recipe_image(
-    recipe_slug: str,
-    image: bytes = File(...),
-    extension: str = Form(...),
-    session: Session = Depends(generate_session),
-):
-    """ Removes an existing image and replaces it with the incoming file. """
-    write_image(recipe_slug, image, extension)
-    new_version = db.recipes.update_image(session, recipe_slug, extension)
-
-    return {"image": new_version}
+class FormatResponse(BaseModel):
+    jjson: list[str] = Field(..., alias="json")
+    zip: list[str]
+    jinja2: list[str]
 
 
-@user_router.post("/{recipe_slug}/image")
-def scrape_image_url(
-    recipe_slug: str,
-    url: RecipeURLIn,
-):
-    """ Removes an existing image and replaces it with the incoming file. """
-
-    scrape_image(url.url, recipe_slug)
+router_exports = UserAPIRouter(prefix="/recipes", tags=["Recipe: Exports"])
 
 
-@user_router.post("/{recipe_slug}/assets", response_model=RecipeAsset)
-def upload_recipe_asset(
-    recipe_slug: str,
-    name: str = Form(...),
-    icon: str = Form(...),
-    extension: str = Form(...),
-    file: UploadFile = File(...),
-    session: Session = Depends(generate_session),
-):
-    """ Upload a file to store as a recipe asset """
-    file_name = slugify(name) + "." + extension
-    asset_in = RecipeAsset(name=name, icon=icon, file_name=file_name)
-    dest = Recipe(slug=recipe_slug).asset_dir.joinpath(file_name)
+@controller(router_exports)
+class RecipeExportController(BaseRecipeController):
+    # ==================================================================================================================
+    # Export Operations
 
-    with dest.open("wb") as buffer:
-        copyfileobj(file.file, buffer)
+    @router_exports.get("/exports", response_model=FormatResponse)
+    def get_recipe_formats_and_templates(self):
+        return TemplateService().templates
 
-    if not dest.is_file():
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR)
+    @router_exports.post("/{slug}/exports", response_model=RecipeZipTokenResponse)
+    def get_recipe_zip_token(self, slug: str):
+        """Generates a recipe zip token to be used to download a recipe as a zip file"""
+        return RecipeZipTokenResponse(token=create_recipe_slug_token(slug))
 
-    recipe: Recipe = db.recipes.get(session, recipe_slug)
-    recipe.assets.append(asset_in)
-    db.recipes.update(session, recipe_slug, recipe.dict())
-    return asset_in
+    @router_exports.get("/{slug}/exports", response_class=FileResponse)
+    def get_recipe_as_format(self, slug: str, template_name: str, temp_dir=Depends(temporary_dir)):
+        """
+        ## Parameters
+        `template_name`: The name of the template to use to use in the exports listed. Template type will automatically
+        be set on the backend. Because of this, it's important that your templates have unique names. See available
+        names and formats in the /api/recipes/exports endpoint.
+
+        """
+        recipe = self.mixins.get_one(slug)
+        file = self.service.render_template(recipe, temp_dir, template_name)
+        return FileResponse(file)
+
+    @router_exports.get("/{slug}/exports/zip")
+    def get_recipe_as_zip(self, slug: str, token: str, temp_path=Depends(temporary_zip_path)):
+        """Get a Recipe and It's Original Image as a Zip File"""
+        slug = validate_recipe_token(token)
+
+        if slug != slug:
+            raise HTTPException(status_code=400, detail="Invalid Slug")
+
+        recipe: Recipe = self.mixins.get_one(slug)
+        image_asset = recipe.image_dir.joinpath(RecipeImageTypes.original.value)
+        with ZipFile(temp_path, "w") as myzip:
+            myzip.writestr(f"{slug}.json", recipe.json())
+
+            if image_asset.is_file():
+                myzip.write(image_asset, arcname=image_asset.name)
+
+        return FileResponse(temp_path, filename=f"{slug}.zip")
+
+
+router = UserAPIRouter(prefix="/recipes", tags=["Recipe: CRUD"])
+
+
+@controller(router)
+class RecipeController(BaseRecipeController):
+    event_bus: EventBusService = Depends(EventBusService)
+
+    def handle_exceptions(self, ex: Exception) -> None:
+        match type(ex):
+            case exceptions.PermissionDenied:
+                self.deps.logger.error("Permission Denied on recipe controller action")
+                raise HTTPException(status_code=403, detail=ErrorResponse.respond(message="Permission Denied"))
+            case exceptions.NoEntryFound:
+                self.deps.logger.error("No Entry Found on recipe controller action")
+                raise HTTPException(status_code=404, detail=ErrorResponse.respond(message="No Entry Found"))
+            case sqlalchemy.exc.IntegrityError:
+                self.deps.logger.error("SQL Integrity Error on recipe controller action")
+                raise HTTPException(status_code=400, detail=ErrorResponse.respond(message="Recipe already exists"))
+
+            case _:
+                self.deps.logger.error("Unknown Error on recipe controller action")
+                self.deps.logger.exception(ex)
+                raise HTTPException(
+                    status_code=500, detail=ErrorResponse.respond(message="Unknown Error", exception=str(ex))
+                )
+
+    # =======================================================================
+    # URL Scraping Operations
+
+    @router.post("/create-url", status_code=201, response_model=str)
+    def parse_recipe_url(self, req: ScrapeRecipe):
+        """Takes in a URL and attempts to scrape data and load it into the database"""
+        recipe, extras = create_from_url(req.url)
+
+        if req.include_tags:
+            ctx = ScraperContext(self.user.id, self.group_id, self.repos)
+
+            recipe.tags = extras.use_tags(ctx)  # type: ignore
+
+        new_recipe = self.service.create_one(recipe)
+
+        if new_recipe:
+            self.event_bus.dispatch(
+                self.deps.acting_user.group_id,
+                EventTypes.recipe_created,
+                msg=self.t(
+                    "notifications.generic-created-with-url",
+                    name=new_recipe.name,
+                    url=urls.recipe_url(new_recipe.slug, self.deps.settings.BASE_URL),
+                ),
+            )
+
+        return new_recipe.slug
+
+    @router.post("/create-url/bulk", status_code=202)
+    def parse_recipe_url_bulk(self, bulk: CreateRecipeByUrlBulk, bg_tasks: BackgroundTasks):
+        """Takes in a URL and attempts to scrape data and load it into the database"""
+        bg_executor = BackgroundExecutor(self.group.id, self.repos, bg_tasks)
+
+        def bulk_import_func(task_id: int, session: Session) -> None:
+            database = get_repositories(session)
+            task = database.server_tasks.get_one(task_id)
+
+            task.append_log("test task has started")
+
+            for b in bulk.imports:
+                try:
+                    recipe, _ = create_from_url(b.url)
+
+                    if b.tags:
+                        recipe.tags = b.tags
+
+                    if b.categories:
+                        recipe.recipe_category = b.categories
+
+                    self.service.create_one(recipe)
+                    task.append_log(f"INFO: Created recipe from url: {b.url}")
+                except Exception as e:
+                    task.append_log(f"Error: Failed to create recipe from url: {b.url}")
+                    task.append_log(f"Error: {e}")
+                    self.deps.logger.error(f"Failed to create recipe from url: {b.url}")
+                    self.deps.logger.error(e)
+                database.server_tasks.update(task.id, task)
+
+            task.set_finished()
+            database.server_tasks.update(task.id, task)
+
+        bg_executor.dispatch(ServerTaskNames.bulk_recipe_import, bulk_import_func)
+
+        return {"details": "task has been started"}
+
+    @router.post("/test-scrape-url")
+    def test_parse_recipe_url(self, url: ScrapeRecipeTest):
+        # Debugger should produce the same result as the scraper sees before cleaning
+        if scraped_data := RecipeScraperPackage(url.url).scrape_url():
+            return scraped_data.schema.data
+
+        return "recipe_scrapers was unable to scrape this URL"
+
+    @router.post("/create-from-zip", status_code=201)
+    def create_recipe_from_zip(self, temp_path=Depends(temporary_zip_path), archive: UploadFile = File(...)):
+        """Create recipe from archive"""
+        recipe = self.service.create_from_zip(archive, temp_path)
+        return recipe.slug
+
+    # ==================================================================================================================
+    # CRUD Operations
+
+    @router.get("", response_model=list[RecipeSummary])
+    def get_all(self, q: RecipeGetAll = Depends(RecipeGetAll)):
+        items = self.repo.summary(self.user.group_id, start=q.start, limit=q.limit, load_foods=q.load_food)
+
+        new_items = []
+        for item in items:
+            # Pydantic/FastAPI can't seem to serialize the ingredient field on thier own.
+            new_item = item.__dict__
+
+            if q.load_food:
+                new_item["recipe_ingredient"] = [x.__dict__ for x in item.recipe_ingredient]
+
+            new_items.append(new_item)
+
+        json_compatible_item_data = jsonable_encoder(RecipeSummary.construct(**x) for x in new_items)
+
+        # Response is returned directly, to avoid validation and improve performance
+        return JSONResponse(content=json_compatible_item_data)
+
+    @router.get("/{slug}", response_model=Recipe)
+    def get_one(self, slug: str):
+        """Takes in a recipe slug, returns all data for a recipe"""
+        return self.mixins.get_one(slug)
+
+    @router.post("", status_code=201, response_model=str)
+    def create_one(self, data: CreateRecipe) -> str | None:
+        """Takes in a JSON string and loads data into the database as a new entry"""
+        try:
+            return self.service.create_one(data).slug
+        except Exception as e:
+            self.handle_exceptions(e)
+            return None
+
+    @router.put("/{slug}")
+    def update_one(self, slug: str, data: Recipe):
+        """Updates a recipe by existing slug and data."""
+        try:
+            data = self.service.update_one(slug, data)
+        except Exception as e:
+            self.handle_exceptions(e)
+
+        if data:
+            self.event_bus.dispatch(
+                self.deps.acting_user.group_id,
+                EventTypes.recipe_updated,
+                msg=self.t(
+                    "notifications.generic-updated-with-url",
+                    name=data.name,
+                    url=urls.recipe_url(data.slug, self.deps.settings.BASE_URL),
+                ),
+            )
+
+        return data
+
+    @router.patch("/{slug}")
+    def patch_one(self, slug: str, data: Recipe):
+        """Updates a recipe by existing slug and data."""
+        try:
+            data = self.service.patch_one(slug, data)
+        except Exception as e:
+            self.handle_exceptions(e)
+        return data
+
+    @router.delete("/{slug}")
+    def delete_one(self, slug: str):
+        """Deletes a recipe by slug"""
+        try:
+            data = self.service.delete_one(slug)
+        except Exception as e:
+            self.handle_exceptions(e)
+
+        if data:
+            self.event_bus.dispatch(
+                self.deps.acting_user.group_id,
+                EventTypes.recipe_deleted,
+                msg=self.t("notifications.generic-deleted", name=data.name),
+            )
+
+        return data
+
+    # ==================================================================================================================
+    # Image and Assets
+
+    @router.post("/{slug}/image", tags=["Recipe: Images and Assets"])
+    def scrape_image_url(self, slug: str, url: ScrapeRecipe):
+        recipe = self.mixins.get_one(slug)
+        data_service = RecipeDataService(recipe.id)
+        data_service.scrape_image(url.url)
+
+        recipe.image = cache.cache_key.new_key()
+        self.service.update_one(recipe.slug, recipe)
+
+    @router.put("/{slug}/image", response_model=UpdateImageResponse, tags=["Recipe: Images and Assets"])
+    def update_recipe_image(self, slug: str, image: bytes = File(...), extension: str = Form(...)):
+        recipe = self.mixins.get_one(slug)
+        data_service = RecipeDataService(recipe.id)
+        data_service.write_image(image, extension)
+
+        new_version = self.repo.update_image(slug, extension)
+        return UpdateImageResponse(image=new_version)
+
+    @router.post("/{slug}/assets", response_model=RecipeAsset, tags=["Recipe: Images and Assets"])
+    def upload_recipe_asset(
+        self,
+        slug: str,
+        name: str = Form(...),
+        icon: str = Form(...),
+        extension: str = Form(...),
+        file: UploadFile = File(...),
+    ):
+        """Upload a file to store as a recipe asset"""
+        file_name = f"{slugify(name)}.{extension}"
+        asset_in = RecipeAsset(name=name, icon=icon, file_name=file_name)
+
+        recipe = self.mixins.get_one(slug)
+
+        dest = recipe.asset_dir / file_name
+
+        with dest.open("wb") as buffer:
+            copyfileobj(file.file, buffer)
+
+        if not dest.is_file():
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        recipe = self.mixins.get_one(slug)
+        recipe.assets.append(asset_in)
+
+        self.mixins.update_one(recipe, slug)
+
+        return asset_in

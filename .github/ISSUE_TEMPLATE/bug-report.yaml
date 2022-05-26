@@ -1,5 +1,5 @@
 ---
-name: Bug Report
+name: "[v0.5.x] Bug Report"
 description: "submit a bug report for the current release"
 body:
   - type: checkboxes
@@ -17,6 +17,8 @@ body:
         - label: I searched the Mealie documentation, with the integrated search.
           required: true
         - label: I already read the docs and didn't find an answer.
+          required: true
+        - label: I have checked for existing issues that have been resolved in v1-beta
           required: true
   - type: textarea
     id: description

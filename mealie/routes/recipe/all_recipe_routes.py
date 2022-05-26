@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+<<<<<<< HEAD
 from mealie.db.database import db
 from mealie.db.db_setup import generate_session
 from mealie.routes.deps import is_logged_in
@@ -64,3 +65,24 @@ async def filter_by_tags(tags: list, session: Session = Depends(generate_session
     in_tags = [tag.recipes for tag in in_tags]
     in_tags = [item for sublist in in_tags for item in sublist]
     return in_tags
+=======
+from sqlalchemy.orm.session import Session
+
+from mealie.db.db_setup import generate_session
+from mealie.repos.all_repositories import get_repositories
+from mealie.schema.recipe import RecipeSummary
+
+router = APIRouter()
+
+
+@router.get("/summary/untagged", response_model=list[RecipeSummary])
+async def get_untagged_recipes(count: bool = False, session: Session = Depends(generate_session)):
+    db = get_repositories(session)
+    return db.recipes.count_untagged(count=count, override_schema=RecipeSummary)
+
+
+@router.get("/summary/uncategorized", response_model=list[RecipeSummary])
+async def get_uncategorized_recipes(count: bool = False, session: Session = Depends(generate_session)):
+    db = get_repositories(session)
+    return db.recipes.count_uncategorized(count=count, override_schema=RecipeSummary)
+>>>>>>> v1.0.0-beta-1

@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 # Use changeme@email.com/MyPassword as user/password credentials
 version: "3.1"
+=======
+# Use root/example as user/password credentials
+version: "3.4"
+>>>>>>> v1.0.0-beta-1
 services:
   # Vue Frontend
   mealie-frontend:
@@ -7,12 +12,14 @@ services:
     image: mealie-frontend:dev
     build:
       context: ./frontend
-      dockerfile: frontend.Dockerfile
+      dockerfile: Dockerfile.frontend
     restart: always
     ports:
       - 9920:8080
     environment:
-      VUE_APP_API_BASE_URL: "http://mealie-api:9000"
+      - GLOBAL_MIDDLEWARE=null
+      - BASE_URL=""
+      - ALLOW_SIGNUP=true
     volumes:
       - ./frontend/:/app
       - /app/node_modules

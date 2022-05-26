@@ -20,8 +20,9 @@ This is an example of how to set it up using DuckDNS and docker-compose.
 
 !!! example "docker-compose.yml"
 ```yaml
-version: "2.1"
+version: "3.1"
 services:
+<<<<<<< HEAD
     swag:
         image: ghcr.io/linuxserver/swag
         container_name: swag
@@ -49,6 +50,33 @@ services:
             # required if VALIDATION=http above, if you aren't using DuckDNS
             - 80:80 
         restart: unless-stopped
+=======
+swag:
+image: ghcr.io/linuxserver/swag
+container_name: swag
+cap_add:
+- NET_ADMIN
+environment:
+- PUID=1000
+- PGID=1000
+- TZ=Europe/Brussels
+- URL=<mydomain.duckdns>
+- SUBDOMAINS=wildcard
+- VALIDATION=duckdns
+- CERTPROVIDER= #optional
+- DNSPLUGIN= #optional
+- DUCKDNSTOKEN=<duckdnstoken>
+- EMAIL=<e-mail> #optional
+- ONLY_SUBDOMAINS=false #optional
+- EXTRA_DOMAINS=<extradomains> #optional
+- STAGING=false #optional
+volumes:
+- /etc/config/swag:/config
+ports:
+- 443:443
+- 80:80 #optional
+restart: unless-stopped
+>>>>>>> v1.0.0-beta-1
 
 ```
 
@@ -63,8 +91,13 @@ making mealie visible to other applications on your machine.
 Navigate to the config folder of SWAG and head to `proxy-confs`. If you used the example above, you should navigate to: `/etc/config/swag/nginx/proxy-confs/`.
 There are a lot of preconfigured files to use for different apps such as radarr, sonarr, overseerr, ...
 
+<<<<<<< HEAD
 To use the bundled configuration file, simply rename `mealie.subdomain.conf.sample` in the proxy-confs folder to `mealie.subdomain.conf`.
 Alternatively, you can create a new file `mealie.subdomain.conf` in proxy-confs with the following configuration:
+=======
+To use the bundled configuration file, simply rename <code>mealie.subdomain.conf.sample</code> in the proxy-confs folder to <code>mealie.subdomain.conf</code>. Currently, you will have to change the $upstream_app and $upstream_port to mealie-frontend and port 3000. This will be added to the bundled config files once the beta is released.
+Alternatively, you can create a new file <code>mealie.subdomain.conf</code> in proxy-confs with the following configuration:
+>>>>>>> v1.0.0-beta-1
 
 !!! example "mealie.subdomain.conf"
 ```nginx
@@ -76,7 +109,18 @@ server {
 
     include /config/nginx/ssl.conf;
 
+<<<<<<< HEAD
     client_max_body_size 0;
+=======
+    	location / {
+        	include /config/nginx/proxy.conf;
+        	include /config/nginx/resolver.conf;
+        	set $upstream_app mealie-frontend;
+        	set $upstream_port 3000;
+        	set $upstream_proto http;
+        	proxy_pass $upstream_proto://$upstream_app:$upstream_port;
+    		}
+>>>>>>> v1.0.0-beta-1
 
     location / {
         include /config/nginx/proxy.conf;
@@ -91,7 +135,11 @@ server {
 
 ## Step 4: Port-forward port 443
 
+<<<<<<< HEAD
 Since SWAG allows you to set up a secure connection, you will need to open port 443 on your router for encrypted traffic. This is way more secure than port 80 for http. For more information about using TLS on port 443, see [SWAG's documentation](https://docs.linuxserver.io/general/swag#cert-provider-lets-encrypt-vs-zerossl) on cert providers and port forwarding.
+=======
+Since SWAG allows you to set up a secure connection, you will need to open port 443 on your router for encrypted traffic. Port 80 can be used as well if you want to have the http to https redirect working. This is however optional and not recommended, only if you have a specific usage for it.
+>>>>>>> v1.0.0-beta-1
 
 ## Step 5: Restart SWAG
 

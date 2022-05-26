@@ -1,0 +1,21 @@
+{
+  "short": {
+    "month": "breve",
+    "day": "numerico",
+    "weekday": "lungo"
+  },
+  "medium": {
+    "month": "lungo",
+    "day": "numerico",
+    "weekday": "lungo",
+    "year": "numerico"
+  },
+  "long": {
+    "year": "numeric",
+    "month": "lungo",
+    "day": "numerico",
+    "weekday": "lungo",
+    "hour": "numerico",
+    "minute": "numerico"
+  }
+}

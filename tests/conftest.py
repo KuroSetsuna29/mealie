@@ -1,17 +1,20 @@
-from tests.pre_test import DB_URL, settings  # isort:skip
+from pytest import MonkeyPatch, fixture
 
-import json
+mp = MonkeyPatch()
+mp.setenv("PRODUCTION", "True")
+mp.setenv("TESTING", "True")
 
-import requests
+
+from pathlib import Path
+
 from fastapi.testclient import TestClient
+
 from mealie.app import app
+from mealie.core import config
 from mealie.db.db_setup import SessionLocal, generate_session
 from mealie.db.init_db import main
-from pytest import fixture
-
-from tests.app_routes import AppRoutes
-from tests.test_config import TEST_DATA
-from tests.utils.recipe_data import get_raw_no_image, get_raw_recipe, get_recipe_test_cases
+from tests import data as test_data
+from tests.fixtures import *  # noqa: F403 F401
 
 main()
 
@@ -31,67 +34,34 @@ def api_client():
 
     yield TestClient(app)
 
-    DB_URL.unlink(missing_ok=True)
-
-
-@fixture(scope="session")
-def api_routes():
-    return AppRoutes()
+    try:
+        settings = config.get_app_settings()
+        settings.DB_PROVIDER.db_path.unlink()  # Handle SQLite Provider
+    except Exception:
+        pass
 
 
 @fixture(scope="session")
 def test_image_jpg():
-    return TEST_DATA.joinpath("images", "test_image.jpg")
+    return test_data.images_test_image_1
 
 
 @fixture(scope="session")
 def test_image_png():
-    return TEST_DATA.joinpath("images", "test_image.png")
+    return test_data.images_test_image_2
 
 
-def login(form_data, api_client: requests, api_routes: AppRoutes):
-    response = api_client.post(api_routes.auth_token, form_data)
-    assert response.status_code == 200
-    token = json.loads(response.text).get("access_token")
-    return {"Authorization": f"Bearer {token}"}
+@fixture(scope="session", autouse=True)
+def global_cleanup() -> None:
+    """Purges the .temp directory used for testing"""
+    yield None
+    try:
+        temp_dir = Path(__file__).parent / ".temp"
 
+        if temp_dir.exists():
+            import shutil
 
-@fixture(scope="session")
-def admin_token(api_client: requests, api_routes: AppRoutes):
-    form_data = {"username": "changeme@email.com", "password": settings.DEFAULT_PASSWORD}
-    return login(form_data, api_client, api_routes)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-
-@fixture(scope="session")
-def user_token(admin_token, api_client: requests, api_routes: AppRoutes):
-    # Create the user
-    create_data = {
-        "fullName": "User",
-        "email": "user@email.com",
-        "password": "useruser",
-        "group": "Home",
-        "admin": False,
-        "tokens": [],
-    }
-
-    response = api_client.post(api_routes.users, json=create_data, headers=admin_token)
-    assert response.status_code == 201
-
-    # Log in as this user
-    form_data = {"username": "user@email.com", "password": "useruser"}
-    return login(form_data, api_client, api_routes)
-
-
-@fixture(scope="session")
-def raw_recipe():
-    return get_raw_recipe()
-
-
-@fixture(scope="session")
-def raw_recipe_no_image():
-    return get_raw_no_image()
-
-
-@fixture(scope="session")
-def recipe_store():
-    return get_recipe_test_cases()
+    except Exception:
+        pass
