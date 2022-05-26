@@ -63,7 +63,7 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/inst
 
 # copy project requirement files here to ensure they will be cached.
 WORKDIR $PYSETUP_PATH
-COPY ./pyproject.toml ./
+COPY ./poetry.lock ./pyproject.toml ./
 
 # install runtime deps - uses $POETRY_VIRTUALENVS_IN_PROJECT internally
 RUN poetry install -E pgsql --no-dev

@@ -1,0 +1,22 @@
+version: "3.1"
+services:
+  mealie:
+    build:
+      context: ./
+      target: production
+      dockerfile: Dockerfile
+    container_name: mealie-test
+    restart: always
+    ports:
+      - 9926:80
+    environment:
+      DEFAULT_PASSWORD: pass4mealie
+      DB_ENGINE: sqlite # Optional: 'sqlite', 'postgres'
+      # POSTGRES_USER: mealie
+      # POSTGRES_PASSWORD: pass4mealie
+      # POSTGRES_SERVER: 192.168.29.23
+      # POSTGRES_PORT: 5432
+      # POSTGRES_DB: mealie
+      # WORKERS_PER_CORE: 0.5
+      MAX_WORKERS: 4
+      # WEB_CONCURRENCY: 2
